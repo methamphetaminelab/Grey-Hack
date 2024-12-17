@@ -1,0 +1,57 @@
+if params.len != 2 or params[0] == "-h" or params[0] == "--help" then 
+    exit("<b>Usage: " + program_path.split("/")[-1] + " [ip_address] [lib]</b>")
+end if
+
+metaxploit = include_lib("/lib/metaxploit.so")
+if not metaxploit then
+    metaxploit = include_lib(current_path + "/metaxploit.so")
+end if
+if not metaxploit then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+
+ip_address = params[0]
+lib = params[1]
+
+metaLib = metaxploit.load("/lib/"+lib)
+
+if lib == "net.so" then
+    exploits = ["0x30C2EE03:focusedc", "0x30C2EE03:positionrestroyimmaxlazymationaryeres", "0x30C2EE03:textlinenumsizedelectt", "0x48050869:ata_typeopend_blineheig", "0x48050869:01f"]
+else if lib == "init.so" then
+    exploits = ["0x7E3433DF:opmod", "0x7E3433DF:hile", "0x7E3433DF:timaticssthanb", "0x7E3433DF:tiondexesadd", "0x557B7681:einoveattimelenb", "0x557B7681:chortmsb", "0x557B7681:sdcolon"]
+else if lib == "kernel_module.so" then
+    exploits = ["0x6AB881E4:ablet", "0x6AB881E4:selt", "0x6AB881E4:ax_block_", "0x6AB881E4:fast", "0x2B689AEA:itleo", "0x2B689AEA:note"]
+else if lib == "aptclient.so" then
+    exploits = ["0x463D2E67:ultaddpara", "0x463D2E67:ewportba", "0x219E3147:ointostatio", "0x219E3147:tionx", "0x219E3147:line", "0x219E3147:heap", "0x13349775:losebackremodb", "0x13349775:turnalc", "0x13349775:indopositio", "0x13349775:close", "0x13349775:justcoundthiscolo", "0x2E9614F8:minue", "0x2E9614F8:storedpos", "0x2E9614F8:dler32"]
+else 
+    exit("Incorrect lib")
+end if
+
+for exploit in exploits
+    print(exploit)
+    memory = exploit.split(":")[0]
+    vulnerability = exploit.split(":")[1]
+
+    result = metaLib.overflow(memory, vulnerability, ip_address)
+    if not result then print("Program ended unexpectedly")
+
+    if typeof(result) == "computer" then
+        print("Successfully obtained computer object for target at " + ip_address)
+        homeDir = result.File("/home")
+        if homeDir and homeDir.get_folders then
+            userFolders = homeDir.get_folders()
+            for userFolder in userFolders
+                mailFilePath = userFolder.path + "/Config/Mail.txt"
+                mailFile = result.File(mailFilePath)
+                if mailFile != null and mailFile.has_permission("r") then
+                    print("Mail.txt content for user " + userFolder.name + ":\n" + mailFile.get_content())
+                else
+                    print("Mail.txt not found or inaccessible for user: " + userFolder.name)
+                end if
+            end for
+            exit("SUCCESS")
+        else
+            print("Unable to access /home directory or list user folders.")
+        end if
+    else
+        print("Error: expected computer object, obtained: " + typeof(result))
+    end if
+end for

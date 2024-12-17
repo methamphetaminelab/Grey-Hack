@@ -6,3 +6,6 @@ just my script for Grey Hack
 
 ## soDumper
 > scans for `"init.so", "net.so", "kernel_module.so", "aptclient.so", "kernel_router.so"` vulnerabilities and dumps the found ones into a file
+
+## crackMails
+> using previously discovered vulnerabilities, steal email addresses from target
