@@ -9,3 +9,6 @@ just my script for Grey Hack
 
 ## crackMails
 > using previously discovered vulnerabilities, steal email addresses from target
+
+## hack
+> automatically hack the target and can dump vulnerabilities if needed

@@ -1,0 +1,102 @@
+if params.len != 2 or params[0] == "-h" or params[0] == "--help" then exit("<b>Usage: "+program_path.split("/")[-1]+" [hack/makedump] [ipAddress/libsFolder]</b>")
+
+metaxploit = include_lib("/lib/metaxploit.so")
+if not metaxploit then metaxploit = include_lib(current_path + "/metaxploit.so")
+if not metaxploit then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+print("Success: metaxploit loaded!")
+
+processDump = function(dump)
+    eDump = {}
+
+    lines = dump.split("\n")
+    currentLib = ""
+    currentAddress = ""
+
+    for line in lines
+        line = line.trim()
+        parts = line.split(":")
+        
+        if parts.len == 1 then
+            currentLib = parts[0]
+            eDump[currentLib] = {}
+        else
+            currentAddress = parts[0]
+            if not eDump[currentLib].hasIndex(currentAddress) then
+                eDump[currentLib][currentAddress] = [] 
+            end if
+            
+            eDump[currentLib][currentAddress].push(parts[1])  
+        end if
+    end for
+
+    return eDump
+end function
+
+// makeHack = function(ipAddress)
+//     pc = get_shell.host_computer
+//     dumpFile = pc.File(home_dir+"/hackdump.txt")
+//     if dumpFile == null then 
+//         exit("Exiting due to missing dump file.")
+//     else
+//         dump = dumpFile.get_content
+//         dump = processDump(dump)
+//     end if
+
+//     hackAction = user_input("Choose action [access/mails]: ")
+//     if hackAction == "access" then
+//         for lib in dump
+//             for j in lib
+//                 print(lib[j]+"\n\n")
+//             end for
+//         end for
+//     end if
+// end function
+
+makeDump = function(libsFolder)
+    pc = get_shell.host_computer
+    folder = pc.File(libsFolder)
+    if folder.is_folder then
+        libs = folder.get_files
+        exploits = ""
+        libNum = 0
+        for lib in libs
+            libNum = libNum + 1
+            libName = lib.path.split("/")[-1]
+            print("Dumping "+libName+" ["+libNum+"/"+libs.len+"]")
+            metaLib = metaxploit.load(lib.path)
+            memories = metaxploit.scan(metaLib)
+            exploits = exploits+libName+"\n"
+
+            for memory in memories
+                vulnerabilities = metaxploit.scan_address(metaLib, memory).split("Unsafe check: ")
+                for vulnerability in vulnerabilities
+                    exploit = vulnerability[vulnerability.indexOf("<b>") + 3: vulnerability.indexOf("</b>")]
+                    if exploit and exploit != vulnerability then 
+                        exploits = exploits + memory+":"+exploit+"\n"
+                    end if
+                end for
+            end for
+        end for
+    else
+        exit("Error: "+libsFolder+" is not a valid folder path")
+    end if
+
+    outputFile = pc.File(home_dir+"/hackdump.txt")
+    if outputFile == null then 
+        pc.touch(home_dir, "hackdump.txt")
+        outputFile = pc.File(home_dir+"/hackdump.txt")
+    end if
+    
+    outputFile.set_content(format_columns(exploits))
+end function
+
+action = params[0]
+if action == "hack" then 
+    ipAddress = params[1]
+    makeHack(ipAddress)
+else if action == "makedump" then 
+    libsFolder = params[1]
+    makeDump(libsFolder)
+else 
+    exit("<b>Usage: "+program_path.split("/")[-1]+" [hack/makedump] [ipAddress/libsFolder]</b>")
+end if
