@@ -23,6 +23,10 @@ end for
 
 print(exploits)
 outputFile = pc.File(home_dir+"/"+lib+"_dump.txt")
-if outputFile == null then pc.touch(home_dir, lib+"_dump.txt")
+if outputFile == null then 
+	pc.touch(home_dir, lib+"_dump.txt")
+	outputFile = pc.File(home_dir+"/"+lib+"_dump.txt")
+end if
+
 outputFile.set_content(format_columns(exploits)+char(10))
 print("dump saved to: "+home_dir+"/"+lib+"_dump.txt")
