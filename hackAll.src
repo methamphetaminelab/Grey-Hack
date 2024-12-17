@@ -1,4 +1,4 @@
-if params.len != 1 or params[0] == "-h" or params[0] == "--help" then exit("<b>Usage: "+program_path.split("/")[-1]+" [ip_address]</b>")
+if params.len != 2 or params[0] == "-h" or params[0] == "--help" then exit("<b>Usage: "+program_path.split("/")[-1]+" [ip_address] [shell/mail]</b>")
 
 metaxploit = include_lib("/lib/metaxploit.so")
 if not metaxploit then metaxploit = include_lib(current_path + "/metaxploit.so")
@@ -19,13 +19,40 @@ for meta in metaLibs
 			exploit = vulnerability[vulnerability.indexOf("<b>") + 3: vulnerability.indexOf("</b>")]
 			if exploit and exploit != vulnerability then
 				print(exploit)
-				result = metaLib.overflow(memory, exploit, address)
-				if result then 
-					print("---SUCCESS---")
-					print("lib: "+meta)
-					print("memory: "+"["+memory+"]")
-					print("exploit: "+exploit)
-					exit("---SUCCESS---")
+				result = metaLib.overflow(memory, exploit)
+				if result then
+					if typeof(result) == "shell" and params[1] == "shell" then
+						print("---SUCCESS---")
+						print("lib: "+meta)
+						print("memory: "+"["+memory+"]")
+						print("exploit: "+exploit)
+						print("---SUCCESS---")
+						result.start_terminal
+					end if
+				end if
+				if typeof(result) == "computer" and params[1] == "mail" then
+					print("Successfully obtained computer object for target at " + address)
+					homeDir = result.File("/home")
+					if homeDir and homeDir.get_folders then
+						userFolders = homeDir.get_folders()
+						for userFolder in userFolders
+							mailFilePath = userFolder.path + "/Config/Mail.txt"
+							mailFile = result.File(mailFilePath)
+							if mailFile != null and mailFile.has_permission("r") then
+								print("Mail.txt content for user " + userFolder.name + ":\n" + mailFile.get_content())
+							end if
+						end for
+						print("---SUCCESS---")
+						print("lib: "+meta)
+						print("memory: "+"["+memory+"]")
+						print("exploit: "+exploit)
+						print("---SUCCESS---")
+						exit()
+					else
+						print("Unable to access /home directory or list user folders.")
+					end if
+				else
+					print("Error: expected computer object, obtained: " + typeof(result))
 				end if
 			end if
 		end for
