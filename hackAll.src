@@ -1,0 +1,37 @@
+if params.len != 1 or params[0] == "-h" or params[0] == "--help" then exit("<b>Usage: "+program_path.split("/")[-1]+" [ip_address]</b>")
+
+metaxploit = include_lib("/lib/metaxploit.so")
+if not metaxploit then metaxploit = include_lib(current_path + "/metaxploit.so")
+if not metaxploit then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+print("Success: metaxploit loaded!")
+
+cryptools = include_lib("/lib/crypto.so")
+if not cryptools then cryptools = include_lib(current_path + "/crypto.so")
+if not cryptools then exit("Error: Can't find cryptools library in the /lib path or the current folder")
+print("Success: cryptools loaded!\n")
+
+address = params[0]
+metaLibs = ["init.so", "net.so", "kernel_module.so", "aptclient.so", "kernel_router.so"]
+
+for meta in metaLibs
+	print(meta)
+	metaLib = metaxploit.load("/lib/"+meta)
+	memories = metaxploit.scan(metaLib)
+	for memory in memories
+		print("["+memory+"]")
+		vulnerabilities = metaxploit.scan_address(metaLib, memory).split("Unsafe check: ")
+		for vulnerability in vulnerabilities
+			exploit = vulnerability[vulnerability.indexOf("<b>") + 3: vulnerability.indexOf("</b>")]
+			if exploit and exploit != vulnerability then
+				print(exploit)
+				result = metaLib.overflow(memory, exploit, address)
+				if result then 
+					print("---SUCCESS---")
+					print("memory: "+"["+memory+"]")
+					print("exploit: "+exploit)
+					exit("---SUCCESS---")
+				end if
+			end if
+		end for
+	end for
+end for
