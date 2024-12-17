@@ -1,0 +1,28 @@
+if params.len != 1 or params[0] == "-h" or params[0] == "--help" then exit("<b>Usage: "+program_path.split("/")[-1]+" [lib]</b>")
+
+metaxploit = include_lib("/lib/metaxploit.so")
+if not metaxploit then metaxploit = include_lib(current_path + "/metaxploit.so")
+if not metaxploit then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+print("Success: metaxploit loaded!")
+
+lib = params[0]
+pc = get_shell.host_computer
+metaLib = metaxploit.load("/lib/"+lib)
+memories = metaxploit.scan(metaLib)
+exploits = ""
+
+for memory in memories
+	vulnerabilities = metaxploit.scan_address(metaLib, memory).split("Unsafe check: ")
+	for vulnerability in vulnerabilities
+		exploit = vulnerability[vulnerability.indexOf("<b>") + 3: vulnerability.indexOf("</b>")]
+		if exploit and exploit != vulnerability then
+            exploits = exploits + memory+":"+exploit+"\n"
+		end if
+	end for
+end for
+
+print(exploits)
+outputFile = pc.File(home_dir+"/"+lib+"_dump.txt")
+if outputFile == null then pc.touch(home_dir, lib+"_dump.txt")
+outputFile.set_content(format_columns(exploits)+char(10))
+print("dump saved to: "+home_dir+"/"+lib+"_dump.txt")
