@@ -5,52 +5,131 @@ if not metaxploit then metaxploit = include_lib(current_path + "/metaxploit.so")
 if not metaxploit then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
 print("Success: metaxploit loaded!")
 
-processDump = function(dump)
-    eDump = {}
+makeHack = function(ipAddress)
+    pc = get_shell.host_computer
+    dumpFile = pc.File(home_dir+"/hackdump.txt")
+    if dumpFile == null then 
+        exit("Exiting due to missing dump file.")
+    else
+        dump = dumpFile.get_content
+    end if
 
+    hackAction = user_input("Choose action [access/passwordInject/passwords/mails/banks] (password): ")
+    action = hackAction.split(" ")
+    if action.len == 1 then 
+        action = action[0]
+        passwordInject = null
+    else if action.len == 2 then
+        action = action[0]
+        passwordInject = action[1]
+    else
+        exit("Error: Invalid action.")
+    end if
     lines = dump.split("\n")
-    currentLib = ""
-    currentAddress = ""
+    currentLib = null
 
     for line in lines
         line = line.trim()
+        if line == "" then continue
+
         parts = line.split(":")
         
         if parts.len == 1 then
             currentLib = parts[0]
-            eDump[currentLib] = {}
-        else
-            currentAddress = parts[0]
-            if not eDump[currentLib].hasIndex(currentAddress) then
-                eDump[currentLib][currentAddress] = [] 
+        else if currentLib != null then
+            currentMemory = parts[0]
+            currentExploit = parts[1]
+            metaLib = metaxploit.load("/lib/"+currentLib)
+
+            if action == "passwordInject" then
+                result = metaLib.overflow(currentMemory, currentExploit, passwordInject)
+                if typeof(result) == "number" then 
+                    print("---SUCCESS---")
+					print("lib: "+currentLib)
+					print("memory: "+"["+currentMemory+"]")
+					print("exploit: "+currentExploit)
+					print("---SUCCESS---")
+					exit()
+                end if
             end if
-            
-            eDump[currentLib][currentAddress].push(parts[1])  
+
+            result = metaLib.overflow(currentMemory, currentExploit)
+
+            if typeof(result) == "shell" and action == "access" then
+                result.start_terminal
+                print("---SUCCESS---")
+				print("lib: "+currentLib)
+				print("memory: "+"["+currentMemory+"]")
+				print("exploit: "+currentExploit)
+				print("---SUCCESS---")
+				exit()
+            else if typeof(result) == "computer" and action == "mails" then
+				print("Successfully obtained computer object for target at " + ipAddress)
+                mailsOutput = []
+				homeDir = result.File("/home")
+				if homeDir and homeDir.get_folders then
+					userFolders = homeDir.get_folders()
+					for userFolder in userFolders
+						mailFilePath = userFolder.path + "/Config/Mail.txt"
+						mailFile = result.File(mailFilePath)
+						if mailFile != null and mailFile.has_permission("r") then
+							print("Mail.txt content for user " + userFolder.name + ":\n" + mailFile.get_content())
+                                mailsOutput.push(mailFile.get_content())
+						end if
+					end for
+					print("---SUCCESS---")
+					print("lib: "+currentLib)
+					print("memory: "+"["+currentMemory+"]")
+					print("exploit: "+currentExploit)
+					print("---SUCCESS---")
+					exit(mailsOutput)
+				else
+					print("Unable to access /home directory or list user folders.")
+				end if
+            else if typeof(result) == "computer" and action == "banks" then
+				print("Successfully obtained computer object for target at " + ipAddress)
+				homeDir = result.File("/home")
+				if homeDir and homeDir.get_folders then
+					userFolders = homeDir.get_folders()
+					for userFolder in userFolders
+						bankFilePath = userFolder.path + "/Config/Bank.txt"
+						bankFile = result.File(bankFilePath)
+						if bankFile != null and bankFile.has_permission("r") then
+							print("Bank.txt content for user " + userFolder.name + ":\n" + bankFile.get_content())
+						end if
+					end for
+					print("---SUCCESS---")
+					print("lib: "+currentLib)
+					print("memory: "+"["+currentMemory+"]")
+					print("exploit: "+currentExploit)
+					print("---SUCCESS---")
+					exit()
+				else
+					print("Unable to access /home directory or list user folders.")
+				end if
+            else if typeof(result) == "computer" and action == "passwords" then
+				print("Successfully obtained computer object for target at " + ipAddress)
+				passwordsFile = result.File("/etc/passwd")
+                if passwordsFile then
+                    passwords = passwordsFile.get_content.split("\n")
+                    for password in passwords
+                        print(password)
+                    end for
+                    print("---SUCCESS---")
+                    print("lib: "+currentLib)
+                    print("memory: "+"["+currentMemory+"]")
+                    print("exploit: "+currentExploit)
+                    print("---SUCCESS---")
+                    exit()
+				else
+					print("Unable to access /home directory or list user folders.")
+				end if
+            end if
+        else
+            print("Error: Found memory address without a library context.")
         end if
     end for
-
-    return eDump
 end function
-
-// makeHack = function(ipAddress)
-//     pc = get_shell.host_computer
-//     dumpFile = pc.File(home_dir+"/hackdump.txt")
-//     if dumpFile == null then 
-//         exit("Exiting due to missing dump file.")
-//     else
-//         dump = dumpFile.get_content
-//         dump = processDump(dump)
-//     end if
-
-//     hackAction = user_input("Choose action [access/mails]: ")
-//     if hackAction == "access" then
-//         for lib in dump
-//             for j in lib
-//                 print(lib[j]+"\n\n")
-//             end for
-//         end for
-//     end if
-// end function
 
 makeDump = function(libsFolder)
     pc = get_shell.host_computer
@@ -72,7 +151,7 @@ makeDump = function(libsFolder)
                 for vulnerability in vulnerabilities
                     exploit = vulnerability[vulnerability.indexOf("<b>") + 3: vulnerability.indexOf("</b>")]
                     if exploit and exploit != vulnerability then 
-                        exploits = exploits + memory+":"+exploit+"\n"
+                        exploits = exploits + memory+":"+currentExploit+"\n"
                     end if
                 end for
             end for
